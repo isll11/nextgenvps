@@ -1,125 +1,1668 @@
 #!/bin/bash
-# ==========================================
-# NextGen VPS Installer v1.0
-# Modern & Improved VPS Setup Script
-# ==========================================
-clear
-cd $HOME
 
-# ==========================================
-# Variables
-# ==========================================
-RutaBin="/bin"
-RESOLV_CONF="/etc/resolv.conf"
-TIMEZONE="America/Mexico_City"
-VPS_DIR="/etc/NextGen"
-MENU_BIN="/usr/bin/nextgen"
+# NextGeN - Professional Server Management Script
+# Version: 2.0
+# Author: NextGeN Team
 
-# ==========================================
-# Colors
-# ==========================================
-RED='\033[1;31m'
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-CYAN='\033[1;36m'
-WHITE='\033[1;37m'
-BOLD='\033[1m'
-RESET='\033[0m'
+# Color codes for professional interface
+readonly RESET='\033[0m'
+readonly BLACK='\033[0;30m'
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[0;33m'
+readonly BLUE='\033[0;34m'
+readonly PURPLE='\033[0;35m'
+readonly CYAN='\033[0;36m'
+readonly WHITE='\033[0;37m'
+readonly BOLD='\033[1m'
+readonly UNDERLINE='\033[4m'
+readonly BLINK='\033[5m'
 
-bar() { echo -e "${RED}————————————————————————————————————————————${RESET}"; }
+# Background colors
+readonly BG_BLACK='\033[40m'
+readonly BG_RED='\033[41m'
+readonly BG_GREEN='\033[42m'
+readonly BG_YELLOW='\033[43m'
+readonly BG_BLUE='\033[44m'
+readonly BG_PURPLE='\033[45m'
+readonly BG_CYAN='\033[46m'
+readonly BG_WHITE='\033[47m'
 
-msg() {
-    case $1 in
-        -ok) echo -e "${GREEN}[✔] $2${RESET}" ;;
-        -err) echo -e "${RED}[✖] $2${RESET}" ;;
-        -info) echo -e "${CYAN}[i] $2${RESET}" ;;
-        -warn) echo -e "${YELLOW}[!] $2${RESET}" ;;
-        -bar) bar ;;
+# Icons for better visualization
+readonly ICON_CHECK="✅"
+readonly ICON_CROSS="❌"
+readonly ICON_WARNING="⚠️"
+readonly ICON_INFO="ℹ️"
+readonly ICON_ROCKET="🚀"
+readonly ICON_SETTINGS="⚙️"
+readonly ICON_DOWNLOAD="📥"
+readonly ICON_UPLOAD="📤"
+readonly ICON_USERS="👥"
+readonly ICON_SERVER="🖥️"
+readonly ICON_DATABASE="🗄️"
+readonly ICON_NETWORK="🌐"
+readonly ICON_LOCK="🔒"
+readonly ICON_KEY="🔑"
+readonly ICON_TIME="⏰"
+readonly ICON_MENU="📋"
+
+# Initialize script
+initialize_script() {
+    clear
+    cd "$HOME" || exit 1
+    
+    # Set timezone
+    rm -rf /etc/localtime 2>/dev/null
+    ln -s /usr/share/zoneinfo/America/Mexico_City /etc/localtime 2>/dev/null
+    
+    # Set DNS
+    cat > /etc/resolv.conf << EOF
+nameserver 1.1.1.1
+nameserver 1.0.0.1
+EOF
+    
+    # Get server IP
+    export SERVER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -n1)
+    export SERVER_INT=$(ip -4 addr show | grep -B1 "$SERVER_IP" | head -n1 | awk '{print $2}' | tr -d ':')
+}
+
+# Professional header function
+show_header() {
+    clear
+    echo -e "${BG_BLUE}${WHITE}${BOLD}"
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║                    NextGeN v2.0                            ║"
+    echo "║              Professional Server Management                ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
+    echo -e "${RESET}"
+    
+    # Server info bar
+    echo -e "${CYAN}${BOLD}${ICON_SERVER} Server Info${RESET}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    printf "${GREEN}IP Address:${RESET} %-15s ${GREEN}Interface:${RESET} %-10s\n" "$SERVER_IP" "$SERVER_INT"
+    printf "${GREEN}Hostname:${RESET} %-15s ${GREEN}Uptime:${RESET} %s\n" "$(hostname)" "$(uptime -p | sed 's/up //')"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+}
+
+# Progress bar function
+show_progress() {
+    local current=$1
+    local total=$2
+    local width=50
+    local percentage=$((current * 100 / total))
+    local completed=$((current * width / total))
+    local remaining=$((width - completed))
+    
+    printf "\r${CYAN}[${RESET}"
+    printf "%${completed}s" | tr ' ' '█'
+    printf "%${remaining}s" | tr ' ' '░'
+    printf "${CYAN}]${RESET} ${GREEN}%d%%${RESET}" "$percentage"
+}
+
+# Animated loading function
+loading_animation() {
+    local message=$1
+    local pid=$2
+    local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
+    local i=0
+    
+    while kill -0 "$pid" 2>/dev/null; do
+        i=$(((i + 1) % 8))
+        printf "\r${YELLOW}${ICON_INFO} %s... ${CYAN}%s${RESET}" "$message" "${spin:$i:1}"
+        sleep 0.1
+    done
+    printf "\r${GREEN}${ICON_CHECK} %s... Done!${RESET}  \n" "$message"
+}
+
+# Package installation with visual feedback
+install_packages() {
+    show_header
+    echo -e "${YELLOW}${BOLD}${ICON_SETTINGS} System Package Installation${RESET}\n"
+    
+    local packages=(
+        "net-tools:Network Tools"
+        "grep:Text Processing"
+        "gawk:Text Processing"
+        "lolcat:Color Effects"
+        "nano:Text Editor"
+        "bc:Calculator"
+        "lsof:System Monitor"
+        "figlet:ASCII Art"
+        "cowsay:Fun Output"
+        "screen:Terminal Multiplexer"
+        "python3:Python 3"
+        "python3-pip:PIP Package Manager"
+        "ufw:Firewall"
+        "unzip:Archive Tool"
+        "apache2:Web Server"
+    )
+    
+    local total=${#packages[@]}
+    local current=0
+    
+    # Update package list
+    echo -ne "${BLUE}${ICON_DOWNLOAD} Updating package lists...${RESET}"
+    apt update -y >/dev/null 2>&1 &
+    loading_animation "Updating packages" $!
+    
+    echo
+    
+    # Install each package with progress
+    for package in "${packages[@]}"; do
+        local pkg_name="${package%%:*}"
+        local pkg_desc="${package#*:}"
+        
+        current=$((current + 1))
+        show_progress $current $total
+        
+        echo -ne " ${CYAN}Installing:${RESET} $pkg_desc... "
+        
+        if apt install -y "$pkg_name" >/dev/null 2>&1; then
+            echo -e "${GREEN}${ICON_CHECK}${RESET}"
+        else
+            echo -e "${RED}${ICON_CROSS}${RESET}"
+        fi
+    done
+    
+    echo -e "\n${GREEN}${ICON_CHECK} Package installation completed!${RESET}\n"
+    sleep 2
+}
+
+# Modern menu system
+show_main_menu() {
+    while true; do
+        show_header
+        
+        # Menu options with icons
+        echo -e "${BOLD}${CYAN}${ICON_MENU} MAIN MENU${RESET}\n"
+        
+        echo -e "  ${GREEN}1${RESET}) ${ICON_SERVER} Server Management"
+        echo -e "  ${GREEN}2${RESET}) ${ICON_USERS} User Management"
+        echo -e "  ${GREEN}3${RESET}) ${ICON_NETWORK} Network Configuration"
+        echo -e "  ${GREEN}4${RESET}) ${ICON_LOCK} Security Settings"
+        echo -e "  ${GREEN}5${RESET}) ${ICON_DATABASE} Service Monitor"
+        echo -e "  ${GREEN}6${RESET}) ${ICON_SETTINGS} System Tools"
+        echo -e "  ${GREEN}7${RESET}) ${ICON_TIME} Scheduled Tasks"
+        echo -e "  ${GREEN}0${RESET}) ${RED}Exit${RESET}\n"
+        
+        echo -ne "${YELLOW}${BOLD}Select an option [0-7]: ${RESET}"
+        read -r main_choice
+        
+        case $main_choice in
+            1) server_management ;;
+            2) user_management ;;
+            3) network_config ;;
+            4) security_settings ;;
+            5) service_monitor ;;
+            6) system_tools ;;
+            7) scheduled_tasks ;;
+            0) 
+                echo -e "\n${GREEN}${ICON_ROCKET} Thank you for using NextGeN!${RESET}\n"
+                exit 0
+                ;;
+            *)
+                echo -e "\n${RED}${ICON_WARNING} Invalid option!${RESET}"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# Server Management Submenu
+server_management() {
+    while true; do
+        show_header
+        echo -e "${BOLD}${CYAN}${ICON_SERVER} SERVER MANAGEMENT${RESET}\n"
+        
+        echo -e "  ${GREEN}1${RESET}) System Information"
+        echo -e "  ${GREEN}2${RESET}) Resource Monitor (CPU/RAM)"
+        echo -e "  ${GREEN}3${RESET}) Disk Usage"
+        echo -e "  ${GREEN}4${RESET}) Running Processes"
+        echo -e "  ${GREEN}5${RESET}) Service Status"
+        echo -e "  ${GREEN}6${RESET}) System Logs"
+        echo -e "  ${GREEN}7${RESET}) System Update"
+        echo -e "  ${GREEN}8${RESET}) Reboot Server"
+        echo -e "  ${GREEN}0${RESET}) Back to Main Menu\n"
+        
+        echo -ne "${YELLOW}${BOLD}Select option: ${RESET}"
+        read -r server_choice
+        
+        case $server_choice in
+            1) show_system_info ;;
+            2) show_resources ;;
+            3) show_disk_usage ;;
+            4) show_processes ;;
+            5) show_services ;;
+            6) show_logs ;;
+            7) update_system ;;
+            8) reboot_server ;;
+            0) return ;;
+            *) 
+                echo -e "\n${RED}${ICON_WARNING} Invalid option!${RESET}"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# System Information
+show_system_info() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_SERVER} SYSTEM INFORMATION${RESET}\n"
+    
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    
+    # OS Information
+    echo -e "${GREEN}Operating System:${RESET} $(lsb_release -d 2>/dev/null | cut -f2 || cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
+    echo -e "${GREEN}Kernel:${RESET} $(uname -r)"
+    echo -e "${GREEN}Architecture:${RESET} $(uname -m)"
+    
+    # CPU Information
+    echo -e "\n${GREEN}CPU:${RESET} $(grep "model name" /proc/cpuinfo | head -1 | cut -d':' -f2 | sed 's/^[ \t]*//')"
+    echo -e "${GREEN}CPU Cores:${RESET} $(nproc)"
+    echo -e "${GREEN}CPU Usage:${RESET} $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)%"
+    
+    # Memory Information
+    local total_mem=$(free -h | grep Mem: | awk '{print $2}')
+    local used_mem=$(free -h | grep Mem: | awk '{print $3}')
+    local free_mem=$(free -h | grep Mem: | awk '{print $4}')
+    local mem_percent=$(free | grep Mem: | awk '{printf("%.1f"), $3/$2 * 100}')
+    
+    echo -e "\n${GREEN}Memory:${RESET}"
+    echo -e "  Total: $total_mem"
+    echo -e "  Used: $used_mem (${mem_percent}%)"
+    echo -e "  Free: $free_mem"
+    
+    # Disk Information
+    echo -e "\n${GREEN}Disk Usage:${RESET}"
+    df -h | grep -E '^/dev/' | while read -r line; do
+        echo "  $line"
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Resource Monitor with real-time updates
+show_resources() {
+    local refresh=2
+    
+    while true; do
+        clear
+        echo -e "${BOLD}${CYAN}${ICON_SERVER} REAL-TIME RESOURCE MONITOR${RESET}"
+        echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+        echo -e "${YELLOW}Press 'q' to quit | Refreshing every ${refresh}s${RESET}\n"
+        
+        # CPU Usage
+        local cpu_user=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
+        local cpu_sys=$(top -bn1 | grep "Cpu(s)" | awk '{print $4}')
+        local cpu_idle=$(top -bn1 | grep "Cpu(s)" | awk '{print $8}')
+        local cpu_total=$(echo "$cpu_user + $cpu_sys" | bc)
+        
+        echo -e "${GREEN}CPU Usage:${RESET}"
+        draw_progress_bar "$cpu_total" "CPU"
+        
+        # Memory Usage
+        local mem_total=$(free | grep Mem: | awk '{print $2}')
+        local mem_used=$(free | grep Mem: | awk '{print $3}')
+        local mem_percent=$(echo "scale=2; $mem_used * 100 / $mem_total" | bc)
+        
+        echo -e "\n${GREEN}Memory Usage:${RESET}"
+        draw_progress_bar "$mem_percent" "RAM"
+        
+        # Top Processes
+        echo -e "\n${GREEN}Top CPU Processes:${RESET}"
+        echo -e "${CYAN}USER       %CPU %MEM COMMAND${RESET}"
+        ps aux --sort=-%cpu | head -6 | tail -5 | awk '{printf "%-10s %4s %4s %s\n", $1, $3, $4, $11}'
+        
+        # Network Stats
+        echo -e "\n${GREEN}Network Statistics:${RESET}"
+        local net_stats=$(netstat -i | grep -v "Iface" | head -3)
+        echo "$net_stats"
+        
+        echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+        
+        read -t "$refresh" -n 1 key
+        if [[ $key = "q" ]]; then
+            break
+        fi
+    done
+}
+
+# Progress bar for resource display
+draw_progress_bar() {
+    local percent=$1
+    local label=$2
+    local width=50
+    local filled=$(echo "$percent * $width / 100" | bc | cut -d'.' -f1)
+    local empty=$((width - filled))
+    
+    printf "  [${GREEN}"
+    printf "%${filled}s" | tr ' ' '█'
+    printf "${RED}"
+    printf "%${empty}s" | tr ' ' '▒'
+    printf "${RESET}] ${YELLOW}%5.1f%%${RESET}\n" "$percent"
+}
+
+# Disk Usage
+show_disk_usage() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_SERVER} DISK USAGE ANALYSIS${RESET}\n"
+    
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    
+    # Overall disk usage
+    echo -e "${GREEN}Filesystem Usage:${RESET}\n"
+    df -h | grep -E '^/dev/' | while read -r fs size used avail use mounted; do
+        local percent="${use%\%}"
+        echo -e "  ${CYAN}${mounted}:${RESET}"
+        draw_progress_bar "$percent" ""
+        echo -e "     Total: $size | Used: $used | Available: $avail\n"
+    done
+    
+    # Largest directories
+    echo -e "\n${GREEN}Top 10 Largest Directories (/:${RESET}\n"
+    du -sh /* 2>/dev/null | sort -rh | head -10 | while read -r size dir; do
+        echo -e "  ${YELLOW}${size}${RESET}  ${dir}"
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# User Management
+user_management() {
+    while true; do
+        show_header
+        echo -e "${BOLD}${CYAN}${ICON_USERS} USER MANAGEMENT${RESET}\n"
+        
+        echo -e "  ${GREEN}1${RESET}) List All Users"
+        echo -e "  ${GREEN}2${RESET}) Create New User"
+        echo -e "  ${GREEN}3${RESET}) Delete User"
+        echo -e "  ${GREEN}4${RESET}) Modify User"
+        echo -e "  ${GREEN}5${RESET}) Set Password"
+        echo -e "  ${GREEN}6${RESET}) Lock/Unlock User"
+        echo -e "  ${GREEN}7${RESET}) User Groups"
+        echo -e "  ${GREEN}8${RESET}) Sudoers Management"
+        echo -e "  ${GREEN}0${RESET}) Back\n"
+        
+        echo -ne "${YELLOW}${BOLD}Select option: ${RESET}"
+        read -r user_choice
+        
+        case $user_choice in
+            1) list_users ;;
+            2) create_user ;;
+            3) delete_user ;;
+            4) modify_user ;;
+            5) set_password ;;
+            6) lock_unlock_user ;;
+            7) manage_groups ;;
+            8) manage_sudoers ;;
+            0) return ;;
+            *) 
+                echo -e "\n${RED}${ICON_WARNING} Invalid option!${RESET}"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# List users with details
+list_users() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_USERS} SYSTEM USERS${RESET}\n"
+    
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${GREEN}USER       UID   GID   HOME                 SHELL${RESET}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    
+    awk -F: '$3>=1000 {printf "%-10s %-5s %-5s %-20s %s\n", $1, $3, $4, $6, $7}' /etc/passwd | sort
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Create new user with validation
+create_user() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_USERS} CREATE NEW USER${RESET}\n"
+    
+    echo -ne "${YELLOW}Enter username: ${RESET}"
+    read -r username
+    
+    # Validate username
+    if [[ -z "$username" ]]; then
+        echo -e "${RED}${ICON_CROSS} Username cannot be empty!${RESET}"
+        sleep 2
+        return
+    fi
+    
+    if id "$username" &>/dev/null; then
+        echo -e "${RED}${ICON_CROSS} User $username already exists!${RESET}"
+        sleep 2
+        return
+    fi
+    
+    echo -ne "${YELLOW}Create home directory? (y/n): ${RESET}"
+    read -r create_home
+    
+    echo -ne "${YELLOW}Set password now? (y/n): ${RESET}"
+    read -r set_pass
+    
+    # Create user
+    if [[ "$create_home" =~ ^[Yy]$ ]]; then
+        useradd -m -s /bin/bash "$username"
+        echo -e "${GREEN}${ICON_CHECK} User created with home directory${RESET}"
+    else
+        useradd -s /bin/bash "$username"
+        echo -e "${GREEN}${ICON_CHECK} User created without home directory${RESET}"
+    fi
+    
+    # Set password
+    if [[ "$set_pass" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}Enter password for $username:${RESET}"
+        passwd "$username"
+    fi
+    
+    echo -e "\n${GREEN}${ICON_CHECK} User $username created successfully!${RESET}"
+    sleep 2
+}
+
+# Network Configuration
+network_config() {
+    while true; do
+        show_header
+        echo -e "${BOLD}${CYAN}${ICON_NETWORK} NETWORK CONFIGURATION${RESET}\n"
+        
+        echo -e "  ${GREEN}1${RESET}) Show Network Interfaces"
+        echo -e "  ${GREEN}2${RESET}) Show IP Addresses"
+        echo -e "  ${GREEN}3${RESET}) Show Routing Table"
+        echo -e "  ${GREEN}4${RESET}) Show Open Ports"
+        echo -e "  ${GREEN}5${RESET}) Network Statistics"
+        echo -e "  ${GREEN}6${RESET}) DNS Configuration"
+        echo -e "  ${GREEN}7${RESET}) Firewall Status"
+        echo -e "  ${GREEN}8${RESET}) Test Connectivity"
+        echo -e "  ${GREEN}0${RESET}) Back\n"
+        
+        echo -ne "${YELLOW}${BOLD}Select option: ${RESET}"
+        read -r net_choice
+        
+        case $net_choice in
+            1) show_interfaces ;;
+            2) show_ips ;;
+            3) show_routing ;;
+            4) show_ports ;;
+            5) net_stats ;;
+            6) dns_config ;;
+            7) firewall_status ;;
+            8) test_connectivity ;;
+            0) return ;;
+            *) 
+                echo -e "\n${RED}${ICON_WARNING} Invalid option!${RESET}"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# Show network interfaces
+show_interfaces() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} NETWORK INTERFACES${RESET}\n"
+    
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    
+    ip -br addr show | while read -r line; do
+        iface=$(echo "$line" | awk '{print $1}')
+        status=$(echo "$line" | awk '{print $2}')
+        ipaddr=$(echo "$line" | awk '{print $3}')
+        
+        if [[ "$status" == "UP" ]]; then
+            echo -e "${GREEN}${ICON_CHECK}${RESET} ${CYAN}${iface}:${RESET}"
+        else
+            echo -e "${RED}${ICON_CROSS}${RESET} ${CYAN}${iface}:${RESET}"
+        fi
+        echo -e "     Status: $status"
+        echo -e "     IP: ${ipaddr:-Not assigned}"
+        
+        # Get MAC address
+        mac=$(ip link show "$iface" | grep -oP '(?<=link/ether\s)\S+')
+        echo -e "     MAC: ${mac:-Unknown}"
+        
+        # Get traffic stats
+        rx=$(ip -s link show "$iface" | grep -A1 RX | tail -1 | awk '{print $1}')
+        tx=$(ip -s link show "$iface" | grep -A1 TX | tail -1 | awk '{print $1}')
+        echo -e "     RX: $rx bytes | TX: $tx bytes"
+        echo
+    done
+    
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Show open ports
+show_ports() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} OPEN PORTS${RESET}\n"
+    
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${GREEN}PROTOCOL  PORT    SERVICE           STATE${RESET}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    
+    netstat -tulpn 2>/dev/null | grep LISTEN | while read -r line; do
+        proto=$(echo "$line" | awk '{print $1}')
+        addr=$(echo "$line" | awk '{print $4}')
+        port=$(echo "$addr" | rev | cut -d':' -f1 | rev)
+        service=$(echo "$line" | awk '{print $7}' | cut -d'/' -f2)
+        
+        printf "  %-8s %-8s %-18s ${GREEN}LISTENING${RESET}\n" "$proto" "$port" "${service:-unknown}"
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Security Settings
+security_settings() {
+    while true; do
+        show_header
+        echo -e "${BOLD}${CYAN}${ICON_LOCK} SECURITY SETTINGS${RESET}\n"
+        
+        echo -e "  ${GREEN}1${RESET}) Firewall Configuration"
+        echo -e "  ${GREEN}2${RESET}) SSH Hardening"
+        echo -e "  ${GREEN}3${RESET}) Fail2Ban Status"
+        echo -e "  ${GREEN}4${RESET}) System Updates"
+        echo -e "  ${GREEN}5${RESET}) Security Audit"
+        echo -e "  ${GREEN}6${RESET}) Intrusion Detection"
+        echo -e "  ${GREEN}7${RESET}) Backup Configuration"
+        echo -e "  ${GREEN}0${RESET}) Back\n"
+        
+        echo -ne "${YELLOW}${BOLD}Select option: ${RESET}"
+        read -r sec_choice
+        
+        case $sec_choice in
+            1) firewall_config ;;
+            2) ssh_hardening ;;
+            3) fail2ban_status ;;
+            4) security_updates ;;
+            5) security_audit ;;
+            6) intrusion_detection ;;
+            7) backup_config ;;
+            0) return ;;
+            *) 
+                echo -e "\n${RED}${ICON_WARNING} Invalid option!${RESET}"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# Firewall configuration
+firewall_config() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_LOCK} FIREWALL CONFIGURATION${RESET}\n"
+    
+    # Check if ufw is installed
+    if ! command -v ufw &>/dev/null; then
+        echo -e "${YELLOW}${ICON_INFO} UFW not found. Installing...${RESET}"
+        apt install -y ufw >/dev/null 2>&1
+    fi
+    
+    echo -e "${GREEN}Current Firewall Status:${RESET}\n"
+    ufw status verbose
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${YELLOW}Options:${RESET}"
+    echo "  1) Enable Firewall"
+    echo "  2) Disable Firewall"
+    echo "  3) Allow Port"
+    echo "  4) Deny Port"
+    echo "  5) Delete Rule"
+    echo "  6) Reset Firewall"
+    echo "  0) Back"
+    
+    echo -ne "\n${YELLOW}Select: ${RESET}"
+    read -r fw_choice
+    
+    case $fw_choice in
+        1) 
+            echo -ne "${YELLOW}Enable SSH access first? (y/n): ${RESET}"
+            read -r ssh_confirm
+            if [[ "$ssh_confirm" =~ ^[Yy]$ ]]; then
+                ufw allow ssh
+            fi
+            echo "y" | ufw enable
+            ;;
+        2) ufw disable ;;
+        3) 
+            echo -ne "${YELLOW}Enter port number: ${RESET}"
+            read -r port
+            echo -ne "${YELLOW}Protocol (tcp/udp): ${RESET}"
+            read -r proto
+            ufw allow "$port/$proto"
+            ;;
+        4) 
+            echo -ne "${YELLOW}Enter port number: ${RESET}"
+            read -r port
+            echo -ne "${YELLOW}Protocol (tcp/udp): ${RESET}"
+            read -r proto
+            ufw deny "$port/$proto"
+            ;;
+        5) 
+            ufw status numbered
+            echo -ne "${YELLOW}Enter rule number to delete: ${RESET}"
+            read -r rule_num
+            ufw delete "$rule_num"
+            ;;
+        6) 
+            echo -ne "${YELLOW}Reset all firewall rules? (y/n): ${RESET}"
+            read -r confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                ufw reset
+            fi
+            ;;
+        0) return ;;
+    esac
+    
+    echo -e "\n${GREEN}${ICON_CHECK} Firewall configuration updated!${RESET}"
+    sleep 2
+}
+
+# SSH Hardening
+ssh_hardening() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_LOCK} SSH HARDENING${RESET}\n"
+    
+    local ssh_config="/etc/ssh/sshd_config"
+    local backup="/etc/ssh/sshd_config.backup.$(date +%Y%m%d)"
+    
+    # Create backup
+    cp "$ssh_config" "$backup"
+    echo -e "${GREEN}${ICON_CHECK} Backup created: $backup${RESET}\n"
+    
+    echo -e "${YELLOW}Current SSH Security Settings:${RESET}\n"
+    
+    # Check important security settings
+    grep -E "^(PermitRootLogin|PasswordAuthentication|Port|Protocol|X11Forwarding|MaxAuthTries|ClientAliveInterval|ClientAliveCountMax)" "$ssh_config" | while read -r line; do
+        setting=$(echo "$line" | awk '{print $1}')
+        value=$(echo "$line" | awk '{print $2}')
+        
+        case $setting in
+            PermitRootLogin)
+                if [[ "$value" == "yes" ]]; then
+                    echo -e "  ${RED}✗${RESET} $setting: $value (Insecure)"
+                else
+                    echo -e "  ${GREEN}✓${RESET} $setting: $value"
+                fi
+                ;;
+            PasswordAuthentication)
+                if [[ "$value" == "yes" ]]; then
+                    echo -e "  ${RED}✗${RESET} $setting: $value (Insecure)"
+                else
+                    echo -e "  ${GREEN}✓${RESET} $setting: $value"
+                fi
+                ;;
+            Port)
+                if [[ "$value" == "22" ]]; then
+                    echo -e "  ${YELLOW}⚠${RESET} $setting: $value (Default port)"
+                else
+                    echo -e "  ${GREEN}✓${RESET} $setting: $value"
+                fi
+                ;;
+            *)
+                echo -e "  ${GREEN}✓${RESET} $setting: $value"
+                ;;
+        esac
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${YELLOW}Hardening Options:${RESET}"
+    echo "  1) Disable Root Login"
+    echo "  2) Change SSH Port"
+    echo "  3) Disable Password Authentication (Use Keys)"
+    echo "  4) Set Max Authentication Attempts"
+    echo "  5) Apply Recommended Settings"
+    echo "  6) Restore Backup"
+    echo "  0) Back"
+    
+    echo -ne "\n${YELLOW}Select: ${RESET}"
+    read -r ssh_choice
+    
+    case $ssh_choice in
+        1)
+            sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' "$ssh_config"
+            echo -e "${GREEN}${ICON_CHECK} Root login disabled${RESET}"
+            ;;
+        2)
+            echo -ne "${YELLOW}Enter new SSH port: ${RESET}"
+            read -r new_port
+            sed -i "s/^#*Port.*/Port $new_port/" "$ssh_config"
+            echo -e "${GREEN}${ICON_CHECK} SSH port changed to $new_port${RESET}"
+            ;;
+        3)
+            sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' "$ssh_config"
+            echo -e "${GREEN}${ICON_CHECK} Password authentication disabled${RESET}"
+            ;;
+        4)
+            echo -ne "${YELLOW}Enter max auth attempts (recommended: 3): ${RESET}"
+            read -r max_attempts
+            sed -i "s/^#*MaxAuthTries.*/MaxAuthTries $max_attempts/" "$ssh_config"
+            echo -e "${GREEN}${ICON_CHECK} Max auth attempts set to $max_attempts${RESET}"
+            ;;
+        5)
+            # Apply recommended settings
+            sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' "$ssh_config"
+            sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' "$ssh_config"
+            sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 3/' "$ssh_config"
+            sed -i 's/^#*ClientAliveInterval.*/ClientAliveInterval 300/' "$ssh_config"
+            sed -i 's/^#*ClientAliveCountMax.*/ClientAliveCountMax 2/' "$ssh_config"
+            sed -i 's/^#*Protocol.*/Protocol 2/' "$ssh_config"
+            sed -i 's/^#*X11Forwarding.*/X11Forwarding no/' "$ssh_config"
+            echo -e "${GREEN}${ICON_CHECK} Recommended settings applied${RESET}"
+            ;;
+        6)
+            if [[ -f "$backup" ]]; then
+                cp "$backup" "$ssh_config"
+                echo -e "${GREEN}${ICON_CHECK} Backup restored${RESET}"
+            else
+                echo -e "${RED}${ICON_CROSS} No backup found${RESET}"
+            fi
+            ;;
+        0) return ;;
+    esac
+    
+    # Restart SSH service
+    echo -e "\n${YELLOW}Restarting SSH service...${RESET}"
+    systemctl restart sshd 2>/dev/null || service ssh restart
+    
+    echo -e "\n${GREEN}${ICON_CHECK} SSH configuration updated!${RESET}"
+    sleep 2
+}
+
+# Service Monitor
+service_monitor() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_DATABASE} SERVICE MONITOR${RESET}\n"
+    
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${GREEN}SERVICE           STATUS     MEMORY    CPU      UPTIME${RESET}"
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    
+    # Common services to monitor
+    services=("ssh" "apache2" "nginx" "mysql" "postgresql" "docker" "ufw" "fail2ban" "cron")
+    
+    for service in "${services[@]}"; do
+        if systemctl list-unit-files | grep -q "$service"; then
+            status=$(systemctl is-active "$service" 2>/dev/null)
+            memory=$(systemctl show "$service" -p MemoryCurrent --value 2>/dev/null || echo "N/A")
+            cpu=$(systemctl show "$service" -p CPUUsageNSec --value 2>/dev/null || echo "N/A")
+            uptime=$(systemctl show "$service" -p ActiveEnterTimestamp --value 2>/dev/null | cut -d' ' -f2- || echo "N/A")
+            
+            if [[ "$status" == "active" ]]; then
+                status_icon="${GREEN}●${RESET}"
+                mem_display=$(numfmt --to=iec "$memory" 2>/dev/null || echo "N/A")
+                cpu_display=$([[ "$cpu" != "N/A" ]] && echo "$((cpu/1000000))ms" || echo "N/A")
+            else
+                status_icon="${RED}○${RESET}"
+                mem_display="N/A"
+                cpu_display="N/A"
+                uptime="N/A"
+            fi
+            
+            printf "  %-16s %-10b %-9s %-8s %s\n" "$service" "$status_icon" "$mem_display" "$cpu_display" "$uptime"
+        fi
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    
+    # Service management
+    echo -e "\n${YELLOW}Service Management:${RESET}"
+    echo "  1) Start Service"
+    echo "  2) Stop Service"
+    echo "  3) Restart Service"
+    echo "  4) Enable Service"
+    echo "  5) Disable Service"
+    echo "  0) Back"
+    
+    echo -ne "\n${YELLOW}Select: ${RESET}"
+    read -r svc_choice
+    echo -ne "${YELLOW}Enter service name: ${RESET}"
+    read -r svc_name
+    
+    case $svc_choice in
+        1) systemctl start "$svc_name" 2>/dev/null ;;
+        2) systemctl stop "$svc_name" 2>/dev/null ;;
+        3) systemctl restart "$svc_name" 2>/dev/null ;;
+        4) systemctl enable "$svc_name" 2>/dev/null ;;
+        5) systemctl disable "$svc_name" 2>/dev/null ;;
+        0) return ;;
+    esac
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}${ICON_CHECK} Operation completed successfully${RESET}"
+    else
+        echo -e "${RED}${ICON_CROSS} Operation failed${RESET}"
+    fi
+    
+    sleep 2
+}
+
+# System Tools
+system_tools() {
+    while true; do
+        show_header
+        echo -e "${BOLD}${CYAN}${ICON_SETTINGS} SYSTEM TOOLS${RESET}\n"
+        
+        echo -e "  ${GREEN}1${RESET}) System Cleanup"
+        echo -e "  ${GREEN}2${RESET}) Process Manager"
+        echo -e "  ${GREEN}3${RESET}) Log Viewer"
+        echo -e "  ${GREEN}4${RESET}) Cron Jobs"
+        echo -e "  ${GREEN}5${RESET}) Environment Variables"
+        echo -e "  ${GREEN}6${RESET}) System Information"
+        echo -e "  ${GREEN}7${RESET}) Network Tools"
+        echo -e "  ${GREEN}8${RESET}) Benchmark System"
+        echo -e "  ${GREEN}0${RESET}) Back\n"
+        
+        echo -ne "${YELLOW}${BOLD}Select option: ${RESET}"
+        read -r tool_choice
+        
+        case $tool_choice in
+            1) system_cleanup ;;
+            2) process_manager ;;
+            3) log_viewer ;;
+            4) cron_manager ;;
+            5) env_vars ;;
+            6) system_info_detailed ;;
+            7) network_tools ;;
+            8) benchmark_system ;;
+            0) return ;;
+            *) 
+                echo -e "\n${RED}${ICON_WARNING} Invalid option!${RESET}"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# System Cleanup
+system_cleanup() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_SETTINGS} SYSTEM CLEANUP${RESET}\n"
+    
+    local total_freed=0
+    
+    # Clean apt cache
+    echo -ne "${YELLOW}Cleaning APT cache...${RESET}"
+    local apt_size=$(du -sh /var/cache/apt/archives 2>/dev/null | cut -f1)
+    apt-get clean >/dev/null 2>&1
+    echo -e "${GREEN} Done (Freed: $apt_size)${RESET}"
+    total_freed=$((total_freed + $(numfmt --from=iec "$apt_size" 2>/dev/null || echo 0)))
+    
+    # Clean systemd journals
+    echo -ne "${YELLOW}Cleaning system journals...${RESET}"
+    local journal_size=$(journalctl --disk-usage 2>/dev/null | grep -oP '\d+(\.\d+)?[KMG]?' || echo "0")
+    journalctl --vacuum-time=3d >/dev/null 2>&1
+    echo -e "${GREEN} Done (Freed: $journal_size)${RESET}"
+    
+    # Clean thumbnails
+    echo -ne "${YELLOW}Cleaning thumbnails...${RESET}"
+    if [[ -d ~/.cache/thumbnails ]]; then
+        local thumb_size=$(du -sh ~/.cache/thumbnails 2>/dev/null | cut -f1)
+        rm -rf ~/.cache/thumbnails/* 2>/dev/null
+        echo -e "${GREEN} Done (Freed: $thumb_size)${RESET}"
+    else
+        echo -e "${GREEN} Nothing to clean${RESET}"
+    fi
+    
+    # Clean temporary files
+    echo -ne "${YELLOW}Cleaning temporary files...${RESET}"
+    local tmp_size=$(du -sh /tmp 2>/dev/null | cut -f1)
+    find /tmp -type f -atime +1 -delete 2>/dev/null
+    echo -e "${GREEN} Done (Freed: $tmp_size)${RESET}"
+    
+    # Clean old logs
+    echo -ne "${YELLOW}Cleaning old logs...${RESET}"
+    find /var/log -name "*.log" -mtime +30 -delete 2>/dev/null
+    echo -e "${GREEN} Done${RESET}"
+    
+    echo -e "\n${GREEN}${ICON_CHECK} System cleanup completed!${RESET}"
+    sleep 3
+}
+
+# Process Manager
+process_manager() {
+    while true; do
+        clear
+        echo -e "${BOLD}${CYAN}${ICON_SETTINGS} PROCESS MANAGER${RESET}"
+        echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+        
+        # Show top processes
+        echo -e "${GREEN}Top Processes by CPU Usage:${RESET}\n"
+        ps aux --sort=-%cpu | head -11 | awk 'NR==1{printf "%-8s %-5s %-5s %-5s %-8s %s\n", "USER", "PID", "%CPU", "%MEM", "START", "COMMAND"} NR>1{printf "%-8s %-5s %-5s %-5s %-8s %s\n", $1, $2, $3, $4, $9, $11}'
+        
+        echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+        echo -e "${YELLOW}Options:${RESET}"
+        echo "  1) Kill Process"
+        echo "  2) Nice Process (Priority)"
+        echo "  3) Search Process"
+        echo "  4) Tree View"
+        echo "  0) Back"
+        
+        echo -ne "\n${YELLOW}Select: ${RESET}"
+        read -r proc_choice
+        
+        case $proc_choice in
+            1)
+                echo -ne "${YELLOW}Enter PID to kill: ${RESET}"
+                read -r pid
+                echo -ne "${YELLOW}Signal (15=TERM, 9=KILL): ${RESET}"
+                read -r signal
+                kill "-$signal" "$pid" 2>/dev/null
+                if [[ $? -eq 0 ]]; then
+                    echo -e "${GREEN}${ICON_CHECK} Process killed${RESET}"
+                else
+                    echo -e "${RED}${ICON_CROSS} Failed to kill process${RESET}"
+                fi
+                sleep 2
+                ;;
+            2)
+                echo -ne "${YELLOW}Enter PID: ${RESET}"
+                read -r pid
+                echo -ne "${YELLOW}Nice value (-20 to 19): ${RESET}"
+                read -r nice_val
+                renice "$nice_val" "$pid" 2>/dev/null
+                sleep 2
+                ;;
+            3)
+                echo -ne "${YELLOW}Enter process name: ${RESET}"
+                read -r pname
+                pgrep -l "$pname" | while read -r line; do
+                    echo "  $line"
+                done
+                echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+                read -r
+                ;;
+            4)
+                pstree -p
+                echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+                read -r
+                ;;
+            0) return ;;
+        esac
+    done
+}
+
+# Log Viewer
+log_viewer() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_SETTINGS} LOG VIEWER${RESET}\n"
+    
+    local logs=(
+        "/var/log/syslog:System Log"
+        "/var/log/auth.log:Authentication Log"
+        "/var/log/kern.log:Kernel Log"
+        "/var/log/dpkg.log:Package Manager Log"
+        "/var/log/apache2/access.log:Apache Access Log"
+        "/var/log/apache2/error.log:Apache Error Log"
+        "/var/log/mysql/error.log:MySQL Error Log"
+        "/var/log/nginx/access.log:Nginx Access Log"
+        "/var/log/nginx/error.log:Nginx Error Log"
+    )
+    
+    echo -e "${GREEN}Available Logs:${RESET}\n"
+    local i=1
+    for log in "${logs[@]}"; do
+        local log_file="${log%%:*}"
+        local log_desc="${log#*:}"
+        if [[ -f "$log_file" ]]; then
+            local size=$(du -h "$log_file" 2>/dev/null | cut -f1)
+            local modified=$(date -r "$log_file" "+%Y-%m-%d %H:%M" 2>/dev/null)
+            printf "  %2d) %-25s [%8s] %s\n" "$i" "$log_desc" "$size" "$modified"
+        fi
+        i=$((i+1))
+    done
+    
+    echo -e "\n  $i) Custom Log"
+    echo "  0) Back"
+    
+    echo -ne "\n${YELLOW}Select log to view: ${RESET}"
+    read -r log_choice
+    
+    if [[ "$log_choice" == "0" ]]; then
+        return
+    fi
+    
+    local selected_log
+    if [[ "$log_choice" -le "${#logs[@]}" ]]; then
+        selected_log="${logs[$((log_choice-1)]}%%:*}"
+    else
+        echo -ne "${YELLOW}Enter log file path: ${RESET}"
+        read -r selected_log
+    fi
+    
+    if [[ ! -f "$selected_log" ]]; then
+        echo -e "${RED}${ICON_CROSS} Log file not found${RESET}"
+        sleep 2
+        return
+    fi
+    
+    # View log with options
+    while true; do
+        clear
+        echo -e "${BOLD}${CYAN}Viewing: $selected_log${RESET}\n"
+        echo -e "${YELLOW}Last 20 lines:${RESET}\n"
+        tail -20 "$selected_log"
+        
+        echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+        echo -e "${YELLOW}Options:${RESET}"
+        echo "  1) Show last 50 lines"
+        echo "  2) Show last 100 lines"
+        echo "  3) Follow log (real-time)"
+        echo "  4) Search in log"
+        echo "  5) Show full log"
+        echo "  0) Back"
+        
+        echo -ne "\n${YELLOW}Select: ${RESET}"
+        read -r view_choice
+        
+        case $view_choice in
+            1) tail -50 "$selected_log" | less ;;
+            2) tail -100 "$selected_log" | less ;;
+            3) tail -f "$selected_log" ;;
+            4)
+                echo -ne "${YELLOW}Enter search term: ${RESET}"
+                read -r term
+                grep --color=always -i "$term" "$selected_log" | less -R
+                ;;
+            5) less "$selected_log" ;;
+            0) break ;;
+        esac
+    done
+}
+
+# Cron Job Manager
+cron_manager() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_TIME} CRON JOB MANAGER${RESET}\n"
+    
+    echo -e "${GREEN}Current User Crontab:${RESET}\n"
+    crontab -l 2>/dev/null || echo "  No cron jobs for current user"
+    
+    echo -e "\n${GREEN}System Crontabs:${RESET}\n"
+    ls -la /etc/cron.d/ 2>/dev/null | tail -n +4 | while read -r line; do
+        echo "  $line"
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${YELLOW}Cron Management:${RESET}"
+    echo "  1) Edit User Crontab"
+    echo "  2) Add Cron Job"
+    echo "  3) Remove All Jobs"
+    echo "  4) Backup Crontab"
+    echo "  5) Restore Crontab"
+    echo "  0) Back"
+    
+    echo -ne "\n${YELLOW}Select: ${RESET}"
+    read -r cron_choice
+    
+    case $cron_choice in
+        1) crontab -e ;;
+        2)
+            echo -e "${YELLOW}Enter cron schedule (min hour day month weekday):${RESET}"
+            read -r schedule
+            echo -e "${YELLOW}Enter command to execute:${RESET}"
+            read -r command
+            (crontab -l 2>/dev/null; echo "$schedule $command") | crontab -
+            echo -e "${GREEN}${ICON_CHECK} Cron job added${RESET}"
+            sleep 2
+            ;;
+        3)
+            echo -ne "${YELLOW}Remove all cron jobs? (y/n): ${RESET}"
+            read -r confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                crontab -r
+                echo -e "${GREEN}${ICON_CHECK} All cron jobs removed${RESET}"
+            fi
+            sleep 2
+            ;;
+        4)
+            local backup_file="crontab.backup.$(date +%Y%m%d_%H%M%S)"
+            crontab -l > "$HOME/$backup_file" 2>/dev/null
+            echo -e "${GREEN}${ICON_CHECK} Crontab backed up to $HOME/$backup_file${RESET}"
+            sleep 2
+            ;;
+        5)
+            echo -ne "${YELLOW}Enter backup file path: ${RESET}"
+            read -r restore_file
+            if [[ -f "$restore_file" ]]; then
+                crontab "$restore_file"
+                echo -e "${GREEN}${ICON_CHECK} Crontab restored${RESET}"
+            else
+                echo -e "${RED}${ICON_CROSS} File not found${RESET}"
+            fi
+            sleep 2
+            ;;
+        0) return ;;
     esac
 }
 
-fun_bar() {
-    comando="$1"
-    _=$($comando >/dev/null 2>&1) &
-    pid=$!
-    while [[ -d /proc/$pid ]]; do
-        echo -ne "${YELLOW}[${RED}■■■■■■■■■■■■■■■■■■■■${YELLOW}]${RESET} \r"
-        sleep 0.5
+# Environment Variables
+env_vars() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_SETTINGS} ENVIRONMENT VARIABLES${RESET}\n"
+    
+    echo -e "${GREEN}System Environment Variables:${RESET}\n"
+    
+    # Show important environment variables
+    local vars=("PATH" "HOME" "USER" "SHELL" "LANG" "PWD" "HOSTNAME" "TERM")
+    
+    for var in "${vars[@]}"; do
+        printf "  %-10s = %s\n" "$var" "${!var}"
     done
-    echo -e "${GREEN}[✔] 100%${RESET}"
-    sleep 1
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${YELLOW}Options:${RESET}"
+    echo "  1) Show All Variables"
+    echo "  2) Search Variable"
+    echo "  3) Export New Variable"
+    echo "  4) Unset Variable"
+    echo "  0) Back"
+    
+    echo -ne "\n${YELLOW}Select: ${RESET}"
+    read -r env_choice
+    
+    case $env_choice in
+        1) env | less ;;
+        2)
+            echo -ne "${YELLOW}Enter variable name: ${RESET}"
+            read -r var_name
+            echo -e "${GREEN}${var_name}=${!var_name}${RESET}"
+            echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+            read -r
+            ;;
+        3)
+            echo -ne "${YELLOW}Enter variable name: ${RESET}"
+            read -r var_name
+            echo -ne "${YELLOW}Enter variable value: ${RESET}"
+            read -r var_value
+            export "$var_name=$var_value"
+            echo -e "${GREEN}${ICON_CHECK} Variable exported${RESET}"
+            sleep 2
+            ;;
+        4)
+            echo -ne "${YELLOW}Enter variable name to unset: ${RESET}"
+            read -r var_name
+            unset "$var_name"
+            echo -e "${GREEN}${ICON_CHECK} Variable unset${RESET}"
+            sleep 2
+            ;;
+        0) return ;;
+    esac
 }
 
-# ==========================================
-# Network & Timezone Setup
-# ==========================================
-msg -info "Configuring DNS & Network..."
-echo -e "nameserver 1.1.1.1\nnameserver 1.0.0.1" > $RESOLV_CONF
-myip=$(hostname -I | awk '{print $1}')
-myint=$(ip route | grep $myip | awk '{print $3}')
-rm -f /etc/localtime
-ln -s /usr/share/zoneinfo/$TIMEZONE /etc/localtime
-msg -ok "Network & timezone configured."
+# Detailed System Information
+system_info_detailed() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_SERVER} DETAILED SYSTEM INFORMATION${RESET}\n"
+    
+    echo -e "${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    
+    # Hardware Information
+    echo -e "${GREEN}Hardware Information:${RESET}"
+    echo -e "  CPU Model: $(lscpu | grep "Model name" | cut -d':' -f2 | xargs)"
+    echo -e "  CPU Architecture: $(lscpu | grep "Architecture" | cut -d':' -f2 | xargs)"
+    echo -e "  CPU Cores: $(nproc)"
+    echo -e "  CPU Speed: $(lscpu | grep "CPU max MHz" | cut -d':' -f2 | xargs) MHz"
+    echo -e "  RAM Total: $(free -h | grep Mem: | awk '{print $2}')"
+    echo -e "  RAM Type: $(sudo dmidecode --type memory 2>/dev/null | grep -i "Type:" | head -1 | cut -d':' -f2 | xargs || echo "N/A")"
+    echo -e "  Swap Total: $(free -h | grep Swap: | awk '{print $2}')"
+    
+    # Motherboard Information
+    echo -e "\n${GREEN}Motherboard Information:${RESET}"
+    echo -e "  Manufacturer: $(sudo dmidecode -s system-manufacturer 2>/dev/null || echo "N/A")"
+    echo -e "  Product Name: $(sudo dmidecode -s system-product-name 2>/dev/null || echo "N/A")"
+    echo -e "  Serial Number: $(sudo dmidecode -s system-serial-number 2>/dev/null || echo "N/A")"
+    
+    # BIOS Information
+    echo -e "\n${GREEN}BIOS Information:${RESET}"
+    echo -e "  Vendor: $(sudo dmidecode -s bios-vendor 2>/dev/null || echo "N/A")"
+    echo -e "  Version: $(sudo dmidecode -s bios-version 2>/dev/null || echo "N/A")"
+    echo -e "  Release Date: $(sudo dmidecode -s bios-release-date 2>/dev/null || echo "N/A")"
+    
+    # Network Information
+    echo -e "\n${GREEN}Network Information:${RESET}"
+    echo -e "  Hostname: $(hostname)"
+    echo -e "  Domain: $(hostname -d 2>/dev/null || echo "N/A")"
+    echo -e "  DNS Servers: $(cat /etc/resolv.conf | grep nameserver | awk '{print $2}' | tr '\n' ' ')"
+    
+    # Virtualization
+    echo -e "\n${GREEN}Virtualization:${RESET}"
+    if systemd-detect-virt >/dev/null 2>&1; then
+        echo -e "  Type: $(systemd-detect-virt)"
+    else
+        echo -e "  Type: None (Bare Metal)"
+    fi
+    
+    # Load Average
+    echo -e "\n${GREEN}Load Average:${RESET}"
+    echo -e "  $(uptime | awk -F'load average:' '{print $2}')"
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
 
-# ==========================================
-# Package Installation
-# ==========================================
-install_packages() {
-    msg -bar
-    msg -info "Installing Required Packages..."
-    apt update -y &>/dev/null
-    packages=(net-tools netcat grep gawk mlocate lolcat at nano bc lsof figlet cowsay screen python3 python3-pip ufw unzip zip apache2)
-    for pkg in "${packages[@]}"; do
-        if ! dpkg -s $pkg &>/dev/null; then
-            apt install -y $pkg &>/dev/null
-            [[ $? -eq 0 ]] && msg -ok "Package $pkg installed." || msg -err "Failed to install $pkg."
-        else
-            msg -info "Package $pkg already installed."
+# Network Tools
+network_tools() {
+    while true; do
+        show_header
+        echo -e "${BOLD}${CYAN}${ICON_NETWORK} NETWORK TOOLS${RESET}\n"
+        
+        echo -e "  ${GREEN}1${RESET}) Ping Test"
+        echo -e "  ${GREEN}2${RESET}) Traceroute"
+        echo -e "  ${GREEN}3${RESET}) DNS Lookup"
+        echo -e "  ${GREEN}4${RESET}) Port Scanner"
+        echo -e "  ${GREEN}5${RESET}) Bandwidth Test"
+        echo -e "  ${GREEN}6${RESET}) Network Speed Test"
+        echo -e "  ${GREEN}7${RESET}) WHOIS Lookup"
+        echo -e "  ${GREEN}8${RESET}) HTTP Headers"
+        echo -e "  ${GREEN}0${RESET}) Back\n"
+        
+        echo -ne "${YELLOW}${BOLD}Select option: ${RESET}"
+        read -r net_tool_choice
+        
+        case $net_tool_choice in
+            1) ping_test ;;
+            2) traceroute_test ;;
+            3) dns_lookup ;;
+            4) port_scanner ;;
+            5) bandwidth_test ;;
+            6) speed_test ;;
+            7) whois_lookup ;;
+            8) http_headers ;;
+            0) return ;;
+            *) 
+                echo -e "\n${RED}${ICON_WARNING} Invalid option!${RESET}"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# Ping Test
+ping_test() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} PING TEST${RESET}\n"
+    
+    echo -ne "${YELLOW}Enter hostname or IP: ${RESET}"
+    read -r target
+    
+    echo -e "\n${GREEN}Pinging $target...${RESET}\n"
+    ping -c 5 "$target" | while read -r line; do
+        echo "  $line"
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Traceroute
+traceroute_test() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} TRACEROUTE${RESET}\n"
+    
+    echo -ne "${YELLOW}Enter hostname or IP: ${RESET}"
+    read -r target
+    
+    echo -e "\n${GREEN}Tracing route to $target...${RESET}\n"
+    traceroute -n "$target" 2>/dev/null | head -20 | while read -r line; do
+        echo "  $line"
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# DNS Lookup
+dns_lookup() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} DNS LOOKUP${RESET}\n"
+    
+    echo -ne "${YELLOW}Enter domain name: ${RESET}"
+    read -r domain
+    
+    echo -e "\n${GREEN}A Records (IPv4):${RESET}"
+    dig +short A "$domain" 2>/dev/null | while read -r ip; do
+        echo "  $ip"
+    done
+    
+    echo -e "\n${GREEN}AAAA Records (IPv6):${RESET}"
+    dig +short AAAA "$domain" 2>/dev/null | while read -r ip; do
+        echo "  $ip"
+    done
+    
+    echo -e "\n${GREEN}MX Records (Mail):${RESET}"
+    dig +short MX "$domain" 2>/dev/null | sort -n | while read -r mx; do
+        echo "  $mx"
+    done
+    
+    echo -e "\n${GREEN}NS Records (Nameservers):${RESET}"
+    dig +short NS "$domain" 2>/dev/null | while read -r ns; do
+        echo "  $ns"
+    done
+    
+    echo -e "\n${GREEN}TXT Records:${RESET}"
+    dig +short TXT "$domain" 2>/dev/null | while read -r txt; do
+        echo "  $txt"
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Port Scanner
+port_scanner() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} PORT SCANNER${RESET}\n"
+    
+    echo -ne "${YELLOW}Enter target IP or hostname: ${RESET}"
+    read -r target
+    
+    echo -ne "${YELLOW}Enter port range (e.g., 1-1000): ${RESET}"
+    read -r range
+    
+    local start_port=$(echo "$range" | cut -d'-' -f1)
+    local end_port=$(echo "$range" | cut -d'-' -f2)
+    
+    echo -e "\n${GREEN}Scanning $target for open ports ($range)...${RESET}\n"
+    
+    for port in $(seq "$start_port" "$end_port"); do
+        timeout 1 bash -c "echo >/dev/tcp/$target/$port" 2>/dev/null &&
+        echo -e "  ${GREEN}✓ Port $port is open${RESET}"
+        show_progress "$((port - start_port + 1))" "$((end_port - start_port + 1))"
+    done
+    
+    echo -e "\n\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Bandwidth Test
+bandwidth_test() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} BANDWIDTH TEST${RESET}\n"
+    
+    if ! command -v iperf3 &>/dev/null; then
+        echo -e "${YELLOW}${ICON_INFO} Installing iperf3...${RESET}"
+        apt install -y iperf3 >/dev/null 2>&1
+    fi
+    
+    echo -e "${YELLOW}Select test type:${RESET}"
+    echo "  1) Download Test"
+    echo "  2) Upload Test"
+    echo "  3) Bidirectional Test"
+    
+    echo -ne "\n${YELLOW}Choose: ${RESET}"
+    read -r test_type
+    
+    echo -ne "${YELLOW}Enter server IP (or 'public' for public test): ${RESET}"
+    read -r server
+    
+    if [[ "$server" == "public" ]]; then
+        # Use public iperf servers
+        servers=("iperf.he.net" "iperf.scottlinux.com" "iperf.online.net")
+        echo -e "\n${GREEN}Testing bandwidth...${RESET}\n"
+        
+        for srv in "${servers[@]}"; do
+            echo -e "${CYAN}Testing against $srv:${RESET}"
+            case $test_type in
+                1) iperf3 -c "$srv" -R -t 5 ;;
+                2) iperf3 -c "$srv" -t 5 ;;
+                3) iperf3 -c "$srv" --bidir -t 5 ;;
+            esac 2>/dev/null | grep -E "sender|receiver" | tail -2
+            echo
+        done
+    else
+        echo -e "\n${GREEN}Testing against $server...${RESET}\n"
+        case $test_type in
+            1) iperf3 -c "$server" -R ;;
+            2) iperf3 -c "$server" ;;
+            3) iperf3 -c "$server" --bidir ;;
+        esac
+    fi
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Speed Test
+speed_test() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} INTERNET SPEED TEST${RESET}\n"
+    
+    if ! command -v speedtest-cli &>/dev/null; then
+        echo -e "${YELLOW}${ICON_INFO} Installing speedtest-cli...${RESET}"
+        apt install -y speedtest-cli >/dev/null 2>&1
+    fi
+    
+    echo -e "${YELLOW}Running speed test (this may take a moment)...${RESET}\n"
+    
+    # Run speed test and capture output
+    speedtest_output=$(speedtest-cli --simple 2>&1)
+    
+    if [[ $? -eq 0 ]]; then
+        ping=$(echo "$speedtest_output" | grep Ping | awk '{print $2}')
+        download=$(echo "$speedtest_output" | grep Download | awk '{print $2}')
+        upload=$(echo "$speedtest_output" | grep Upload | awk '{print $2}')
+        
+        echo -e "${GREEN}Results:${RESET}\n"
+        echo -e "  Ping:     ${CYAN}$ping ms${RESET}"
+        echo -e "  Download: ${CYAN}$download Mbit/s${RESET}"
+        echo -e "  Upload:   ${CYAN}$upload Mbit/s${RESET}"
+    else
+        echo -e "${RED}${ICON_CROSS} Speed test failed. Trying alternative method...${RESET}"
+        
+        # Alternative: use curl to test download speed
+        echo -e "\n${YELLOW}Testing download speed from multiple locations...${RESET}\n"
+        
+        test_files=(
+            "http://speedtest.tele2.net/10MB.zip"
+            "http://speedtest.ftp.otenet.gr/files/test10Mb.db"
+            "http://speedtest.ftp.otenet.gr/files/test100Mb.db"
+        )
+        
+        for file in "${test_files[@]}"; do
+            echo -ne "${CYAN}Testing $(basename "$file"):${RESET} "
+            curl -o /dev/null -s -w "%{speed_download}\n" "$file" | awk '{printf "%.2f Mbit/s\n", $0 * 8 / 1000000}'
+        done
+    fi
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# WHOIS Lookup
+whois_lookup() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} WHOIS LOOKUP${RESET}\n"
+    
+    if ! command -v whois &>/dev/null; then
+        echo -e "${YELLOW}${ICON_INFO} Installing whois...${RESET}"
+        apt install -y whois >/dev/null 2>&1
+    fi
+    
+    echo -ne "${YELLOW}Enter domain or IP: ${RESET}"
+    read -r target
+    
+    echo -e "\n${GREEN}WHOIS information for $target:${RESET}\n"
+    whois "$target" | head -30
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# HTTP Headers
+http_headers() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_NETWORK} HTTP HEADERS${RESET}\n"
+    
+    echo -ne "${YELLOW}Enter URL: ${RESET}"
+    read -r url
+    
+    echo -e "\n${GREEN}HTTP Headers for $url:${RESET}\n"
+    curl -I -L "$url" 2>/dev/null | while read -r line; do
+        echo "  $line"
+    done
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Benchmark System
+benchmark_system() {
+    show_header
+    echo -e "${BOLD}${CYAN}${ICON_SETTINGS} SYSTEM BENCHMARK${RESET}\n"
+    
+    echo -e "${YELLOW}This will run system benchmarks. This may take several minutes...${RESET}\n"
+    echo -ne "${YELLOW}Continue? (y/n): ${RESET}"
+    read -r confirm
+    
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        return
+    fi
+    
+    echo -e "\n${GREEN}Running CPU Benchmark...${RESET}"
+    
+    # CPU Benchmark (simple prime calculation)
+    local start_time=$(date +%s.%N)
+    local end=$((10**6))
+    local primes=0
+    
+    for ((i=2; i<=10000; i++)); do
+        local is_prime=1
+        for ((j=2; j*j<=i; j++)); do
+            if ((i % j == 0)); then
+                is_prime=0
+                break
+            fi
+        done
+        ((is_prime)) && ((primes++))
+    done
+    
+    local end_time=$(date +%s.%N)
+    local cpu_score=$(echo "$end_time - $start_time" | bc)
+    
+    echo -e "  CPU Score: ${CYAN}$(printf "%.2f" "$cpu_score") seconds${RESET} (lower is better)"
+    
+    # Memory Benchmark
+    echo -e "\n${GREEN}Running Memory Benchmark...${RESET}"
+    
+    # Test memory read/write speed using dd
+    mem_test_file="/tmp/mem_test"
+    
+    # Write test
+    start_time=$(date +%s.%N)
+    dd if=/dev/zero of="$mem_test_file" bs=1M count=100 2>/dev/null
+    end_time=$(date +%s.%N)
+    write_speed=$(echo "100 / ($end_time - $start_time)" | bc)
+    
+    # Read test
+    start_time=$(date +%s.%N)
+    dd if="$mem_test_file" of=/dev/null bs=1M count=100 2>/dev/null
+    end_time=$(date +%s.%N)
+    read_speed=$(echo "100 / ($end_time - $start_time)" | bc)
+    
+    rm -f "$mem_test_file"
+    
+    echo -e "  Write Speed: ${CYAN}${write_speed} MB/s${RESET}"
+    echo -e "  Read Speed:  ${CYAN}${read_speed} MB/s${RESET}"
+    
+    # Disk I/O Benchmark
+    echo -e "\n${GREEN}Running Disk I/O Benchmark...${RESET}"
+    
+    # Sequential write
+    start_time=$(date +%s.%N)
+    dd if=/dev/zero of=/tmp/disk_test bs=1M count=500 2>&1 | grep -o '[0-9.]\+ MB/s' | tail -1
+    end_time=$(date +%s.%N)
+    rm -f /tmp/disk_test
+    
+    # Random I/O
+    echo -e "\n${GREEN}Random I/O Test (4K blocks):${RESET}"
+    sysbench --test=fileio --file-total-size=1G --file-test-mode=rndrw prepare >/dev/null 2>&1
+    sysbench --test=fileio --file-total-size=1G --file-test-mode=rndrw run | grep -E "transferred|requests" | tail -2
+    sysbench --test=fileio --file-total-size=1G cleanup >/dev/null 2>&1
+    
+    echo -e "\n${WHITE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "\n${YELLOW}Press Enter to continue...${RESET}"
+    read -r
+}
+
+# Main script execution
+main() {
+    # Check if running as root
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${RED}${ICON_WARNING} This script must be run as root!${RESET}"
+        exit 1
+    fi
+    
+    # Initialize script
+    initialize_script
+    
+    # Install required packages if not present
+    if [[ ! -f /etc/nextgen_installed ]]; then
+        install_packages
+        touch /etc/nextgen_installed
+        
+        # Create necessary directories
+        mkdir -p /etc/NextGeN/{users,backups,logs,config} 2>/dev/null
+        
+        # Set up welcome message
+        cat > /etc/NextGeN/motd << 'EOF'
+╔════════════════════════════════════════════════════════════╗
+║                   Welcome to NextGeN                       ║
+║              Professional Server Management                ║
+╚════════════════════════════════════════════════════════════╝
+EOF
+        
+        # Add to bashrc
+        if ! grep -q "NextGeN" ~/.bashrc; then
+            cat >> ~/.bashrc << 'EOF'
+
+# NextGeN Welcome Message
+clear
+cat /etc/NextGeN/motd 2>/dev/null
+echo
+echo -e "\033[1;36mServer Information:\033[0m"
+echo -e "  IP Address: $(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
+echo -e "  Hostname: $(hostname)"
+echo -e "  Uptime: $(uptime -p | sed 's/up //')"
+echo
+echo -e "\033[1;33mType 'nextgen' to open management panel\033[0m"
+echo
+EOF
         fi
-    done
-    # Configure Apache port
-    sed -i "s;Listen 80;Listen 81;" /etc/apache2/ports.conf
-    systemctl restart apache2
+        
+        # Create command alias
+        echo '#!/bin/bash' > /usr/local/bin/nextgen
+        echo 'cd "$HOME" && bash /etc/NextGeN/nextgen.sh' >> /usr/local/bin/nextgen
+        chmod +x /usr/local/bin/nextgen
+    fi
+    
+    # Start main menu
+    show_main_menu
 }
-install_packages
 
-# ==========================================
-# Directory Setup
-# ==========================================
-msg -info "Creating NextGen directories..."
-dirs=(
-    $VPS_DIR
-    $VPS_DIR/tools
-    $VPS_DIR/v2ray
-    $VPS_DIR/slowdns
-    /usr/local/lib/nextgen
-    /usr/share/nextgen/logs
-)
-for d in "${dirs[@]}"; do
-    [[ ! -d $d ]] && mkdir -p $d
-done
-msg -ok "Directories created."
-
-# ==========================================
-# Menu Script Setup
-# ==========================================
-echo -e "#!/bin/bash\nclear\nfiglet NextGen VPS\necho 'Welcome to NextGen VPS Panel!'" > $VPS_DIR/menu.sh
-chmod +x $VPS_DIR/menu.sh
-echo $VPS_DIR/menu.sh > $MENU_BIN
-chmod +x $MENU_BIN
-
-# ==========================================
-# Bash Profile Customization
-# ==========================================
-echo 'clear' >> ~/.bashrc
-echo 'echo -e "\t\033[1;36mWelcome to NextGen VPS\033[0m"' >> ~/.bashrc
-echo 'echo -e "\tType: nextgen or menu to start panel"' >> ~/.bashrc
-
-# ==========================================
-# Final Message
-# ==========================================
-msg -bar
-echo -e "${GREEN}Installation Complete!${RESET}"
-echo -e "${CYAN}Use the command 'nextgen' or 'menu' to access your VPS panel.${RESET}"
-msg -bar
+# Run main function
+main "$@"
